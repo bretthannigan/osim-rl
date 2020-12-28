@@ -13,7 +13,8 @@ from rl.agents import DDPGAgent
 from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
 
-from osim.env.arm import Arm2DVecEnv
+from osim.env.legacy.run import *
+from osim.http.client import Client
 
 from keras.optimizers import RMSprop
 
@@ -24,20 +25,15 @@ import math
 parser = argparse.ArgumentParser(description='Train or test neural net motor controller')
 parser.add_argument('--train', dest='train', action='store_true', default=True)
 parser.add_argument('--test', dest='train', action='store_false', default=True)
-parser.add_argument('--steps', dest='steps', action='store', default=50000, type=int)
-parser.add_argument('--visualize', dest='visualize', action='store_true', default=True)
+parser.add_argument('--steps', dest='steps', action='store', default=10000, type=int)
+parser.add_argument('--visualize', dest='visualize', action='store_true', default=False)
 parser.add_argument('--model', dest='model', action='store', default="example.h5f")
+parser.add_argument('--token', dest='token', action='store', required=False)
 args = parser.parse_args()
 
-# set to get observation in array
-#def _new_step(self, action, project=True, obs_as_dict=False):
-#    return super(Arm2DEnv, self).step(action, project=project, obs_as_dict=obs_as_dict)
-#Arm2DEnv.step = _new_step
 # Load walking environment
-env = Arm2DVecEnv(args.visualize, integrator_accuracy=5e-3)
-#env = Arm2DVecEnv(visualize=True)
+env = RunEnv(args.visualize)
 env.reset()
-#env.reset(verbose=True, logfile='arm_log.txt')
 
 nb_actions = env.action_space.shape[0]
 
@@ -81,19 +77,43 @@ agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_acti
                   random_process=random_process, gamma=.99, target_model_update=1e-3,
                   delta_clip=1.)
 # agent = ContinuousDQNAgent(nb_actions=env.noutput, V_model=V_model, L_model=L_model, mu_model=mu_model,
-#                             memory=memory, nb_steps_warmup=1000, random_process=random_process,
-#                             gamma=.99, target_model_update=0.1)
+#                            memory=memory, nb_steps_warmup=1000, random_process=random_process,
+#                            gamma=.99, target_model_update=0.1)
 agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
 
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
 # Ctrl + C.
 if args.train:
-    agent.fit(env, nb_steps=nallsteps, visualize=True, verbose=1, nb_max_episode_steps=200, log_interval=1000)
+    agent.fit(env, nb_steps=nallsteps, visualize=False, verbose=1, nb_max_episode_steps=env.timestep_limit, log_interval=10000)
     # After training is done, we save the final weights.
     agent.save_weights(args.model, overwrite=True)
 
-if not args.train:
+# If TEST and TOKEN, submit to crowdAI
+if not args.train and args.token:
+    agent.load_weights(args.model)
+    # Settings
+    remote_base = 'http://grader.crowdai.org:1729'
+    client = Client(remote_base)
+
+    # Create environment
+    observation = client.env_create(args.token)
+
+    # Run a single step
+    # The grader runs 3 simulations of at most 1000 steps each. We stop after the last one
+    while True:
+        v = np.array(observation).reshape((env.observation_space.shape[0]))
+        action = agent.forward(v)
+        [observation, reward, done, info] = client.env_step(action.tolist())
+        if done:
+            observation = client.env_reset()
+            if not observation:
+                break
+
+    client.submit()
+
+# If TEST and no TOKEN, run some test experiments
+if not args.train and not args.token:
     agent.load_weights(args.model)
     # Finally, evaluate our algorithm for 1 episode.
-    agent.test(env, nb_episodes=1, visualize=False, nb_max_episode_steps=1000)
+    agent.test(env, nb_episodes=1, visualize=False, nb_max_episode_steps=500)

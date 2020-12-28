@@ -1356,31 +1356,31 @@
 		<ForceSet>
 			<objects>
 				<CoordinateActuator name="pelvis">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> pelvis_tilt </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="hip_r">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> hip_flexion_r </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="hip_l">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> hip_flexion_l </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="knee_r">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> knee_angle_r </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="knee_l">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> knee_angle_l </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="ankle_r">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> ankle_angle_r </coordinate>
 				</CoordinateActuator>
 				<CoordinateActuator name="ankle_l">
- 					<optimal_force> 1.0 </optimal_force>
+ 					<optimal_force> 100.0 </optimal_force>
  					<coordinate> ankle_angle_l </coordinate>
 				</CoordinateActuator>
 				<HuntCrossleyForce name="foot_r">

@@ -13,7 +13,7 @@ from rl.agents import DDPGAgent
 from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
 
-from osim.env import *
+from osim.env.legacy import *
 from osim.http.client import Client
 
 from keras.optimizers import RMSprop

@@ -4,7 +4,7 @@ import numpy as np
 #=== this is the official setting for Learn to Move 2019 ===#
 model = '3D'
 #round_n = 1 # Round 1
-round_n = 2 # Round 2
+round_n = 3 # Round 2
 
 if round_n == 1:
     difficulty = 2 # 2: Round 1; 3: Round 2
@@ -17,7 +17,7 @@ elif round_n == 2:
     project = True
     obs_as_dict = True
 else:
-    difficulty = 1 # 0: constant forward velocities; 1: consecutive sinks forward for walking
+    difficulty = 0 # 0: constant forward velocities; 1: consecutive sinks forward for walking
     seed = None
     project = True
     obs_as_dict = True

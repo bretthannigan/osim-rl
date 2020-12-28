@@ -26,7 +26,7 @@ class OsimModel(object):
     joints = []
     bodies = []
     brain = None
-    verbose = False
+    verbose = True
     istep = 0
     
     state_desc_istep = None
@@ -47,6 +47,11 @@ class OsimModel(object):
         self.model.setUseVisualizer(visualize)
 
         self.muscleSet = self.model.getMuscles()
+        self.actuatorSet = self.model.getActuators()
+        # Remove muscles from other actuators.
+        for j in range(self.muscleSet.getSize()):
+            muscle_name = self.muscleSet.get(j).getName()
+            self.actuatorSet.remove(self.actuatorSet.getIndex(muscle_name))
         self.forceSet = self.model.getForceSet()
         self.bodySet = self.model.getBodySet()
         self.jointSet = self.model.getJointSet()
@@ -63,11 +68,15 @@ class OsimModel(object):
             func = opensim.Constant(1.0)
             self.brain.addActuator(self.muscleSet.get(j))
             self.brain.prescribeControlForActuator(j, func)
-
             self.maxforces.append(self.muscleSet.get(j).getMaxIsometricForce())
             self.curforces.append(1.0)
+        for j in range(self.actuatorSet.getSize()):
+            func = opensim.Constant(1.0)
+            self.brain.addActuator(self.actuatorSet.get(j))
+            self.brain.prescribeControlForActuator(j, func)
+            self.curforces.append(1.0)
 
-        self.noutput = self.muscleSet.getSize()
+        self.noutput = self.muscleSet.getSize() + self.actuatorSet.getSize()
             
         self.model.addController(self.brain)
         self.model_state = self.model.initSystem()
@@ -82,6 +91,9 @@ class OsimModel(object):
         print("\nMUSCLES")
         for i in range(self.muscleSet.getSize()):
             print(i,self.muscleSet.get(i).getName())
+        print("\nACTUATORS (non-muscle)")
+        for i in range(self.actuatorSet.getSize()):
+            print(i,self.actuatorSet.get(i).getName())
         print("\nFORCES")
         for i in range(self.forceSet.getSize()):
             print(i,self.forceSet.get(i).getName())
@@ -93,7 +105,7 @@ class OsimModel(object):
         if np.any(np.isnan(action)):
             raise ValueError("NaN passed in the activation vector. Values in [0,1] interval are required.")
 
-        action = np.clip(np.array(action), 0.0, 1.0)
+        action = np.clip(np.array(action), -1.0, 1.0)
         self.last_action = action
             
         brain = opensim.PrescribedController.safeDownCast(self.model.getControllerSet().get(0))
@@ -211,6 +223,9 @@ class OsimModel(object):
 
     def get_muscle(self, name):
         return self.muscleSet.get(name)
+
+    def get_actuator(self, name):
+        return self.actuatorSet.get(name)
 
     def get_marker(self, name):
         return self.markerSet.get(name)
@@ -367,7 +382,7 @@ class Spec(object):
 class L2M2019Env(OsimEnv):
 # to change later:
 # muscle v: normalize by max_contraction_velocity, 15 lopt / s
-    model = '3D'
+    model = '2D'
 
     # from gait14dof22musc_20170320.osim
     MASS = 75.16460000000001 # 11.777 + 2*(9.3014 + 3.7075 + 0.1 + 1.25 + 0.2166) + 34.2366
@@ -477,7 +492,7 @@ class L2M2019Env(OsimEnv):
                                     ['abd', 'add', 'iliopsoas', 'glut_max', 'hamstrings', 'rect_fem', 'vasti', 'bifemsh', 'gastroc', 'soleus', 'tib_ant']):
                 muscle = self.osim_model.muscleSet.get('{}_{}'.format(mus,side))
                 Fmax = muscle.getMaxIsometricForce()
-                lopt = muscle.getOptimalFiberLength()
+                Fmax = np.inf
                 self.Fmax[leg][MUS] = muscle.getMaxIsometricForce()
                 self.lopt[leg][MUS] = muscle.getOptimalFiberLength()
 

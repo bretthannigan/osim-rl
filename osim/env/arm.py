@@ -97,7 +97,7 @@ class Arm2DEnv(OsimEnv):
         # print((self.target_x, self.target_y))
         if np.isnan(penalty):
             penalty = 1
-        return 1.-penalty
+        return 0#(1.-penalty)**2
 
     def get_reward(self):
         return self.reward()
