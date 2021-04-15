@@ -319,7 +319,7 @@ class OsimEnv(gym.Env):
         self.spec = Spec()
         self.spec.timestep_limit = self.time_limit
 
-        self.action_space = ( [0.0] * self.osim_model.get_action_space_size(), [1.0] * self.osim_model.get_action_space_size() )
+        self.action_space = ( [-1.0] * self.osim_model.get_action_space_size(), [1.0] * self.osim_model.get_action_space_size() )
 #        self.observation_space = ( [-math.pi*100] * self.get_observation_space_size(), [math.pi*100] * self.get_observation_space_s
         self.observation_space = ( [0] * self.get_observation_space_size(), [0] * self.get_observation_space_size() )
         

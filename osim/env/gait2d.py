@@ -106,7 +106,7 @@ class Gait2DGenAct(OsimEnv):
         super(Gait2DGenAct, self).__init__(visualize=visualize, integrator_accuracy=integrator_accuracy)
 
         # Calculate mass by summing all bodies.
-        self.G = self.osim_model.model.getGravity().get(1)
+        self.G = np.abs(self.osim_model.model.getGravity().get(1))
         mass = 0.0
         for i in range(self.osim_model.bodySet.getSize()):
             mass = mass + self.osim_model.bodySet.get(i).getMass()
@@ -183,7 +183,7 @@ class Gait2DGenAct(OsimEnv):
             if obs_as_dict:
                 obs = self.get_observation_dict()
             else:
-                obs = self.get_observation()
+                obs = self.get_observation_clipped()
         else:
             obs = self.get_state_desc()
             
@@ -289,7 +289,7 @@ class Gait2DGenAct(OsimEnv):
             res.append(obs_dict[leg]['d_joint']['hip'])
             res.append(obs_dict[leg]['d_joint']['knee'])
             res.append(obs_dict[leg]['d_joint']['ankle'])
-        return res
+        return np.asarray(res)
 
     def get_observation_clipped(self):
         obs = self.get_observation()
@@ -328,8 +328,8 @@ class Gait2DGenAct(OsimEnv):
 
         self.d_reward['weight'] = {}
         self.d_reward['weight']['footstep'] = 10
-        self.d_reward['weight']['effort'] = 1
-        self.d_reward['weight']['v_tgt'] = 1
+        self.d_reward['weight']['effort'] = (1.0/280000.0)*10
+        self.d_reward['weight']['v_tgt'] = 5
         self.d_reward['weight']['v_tgt_R2'] = 3
 
         self.d_reward['alive'] = 0.1
@@ -341,23 +341,81 @@ class Gait2DGenAct(OsimEnv):
         self.d_reward['footstep']['del_v'] = 0
 
     def get_reward(self):
+        reward_footstep_0 = 0
         state_desc = self.get_state_desc()
+        if not self.get_prev_state_desc():
+            return 0
 
-        reward = 0
+        reward = 0.0
+        dt = self.osim_model.stepsize
+
+        # alive reward
+        # should be large enough to search for 'success' solutions (alive to the end) first
         reward += self.d_reward['alive']
 
-        # # effort ~ muscle fatigue ~ (muscle activation)^2 
-        # ACT2 = 0
-        # for actuator in ['pelvis', 'hip_r', 'hip_l', 'knee_r', 'knee_l', 'ankle_r', 'ankle_r']:
-        #     ACT2 += np.square(state_desc['forces'][actuator][0])
+        # effort ~ muscle fatigue ~ (muscle activation)^2 
+        ACT2 = 0
+        for actuator in ['pelvis', 'hip_r', 'hip_l', 'knee_r', 'knee_l', 'ankle_r', 'ankle_r']:
+            ACT2 += np.square(state_desc['forces'][actuator])
+        self.d_reward['effort'] += ACT2*dt
+        self.d_reward['footstep']['effort'] += ACT2*dt
 
-        # reward -= ACT2*0.00001
+        self.d_reward['footstep']['del_t'] += dt
 
-        pelvis_ty = np.square(state_desc['body_pos']['pelvis'][1] - 0.9)
-        pelvis_tilt = np.sum(np.square(state_desc['joint_pos']['ground_pelvis'] - np.asarray([-0.050387283520705727, -0.00014076261193743153, 0.9099458323860586])))
+        # reward from velocity (penalize from deviating from v_tgt)
 
-        reward -= pelvis_ty
-        reward -= pelvis_tilt
+        p_body = [state_desc['body_pos']['pelvis'][0], -state_desc['body_pos']['pelvis'][2]]
+        v_body = [state_desc['body_vel']['pelvis'][0], -state_desc['body_vel']['pelvis'][2]]
+        v_tgt = [1.0, 0.0, 0.0]
+
+        self.d_reward['footstep']['del_v'] += (v_body[0] - v_tgt[0])*dt
+        #reward += self.d_reward['footstep']['del_v']
+
+        # footstep reward (when made a new step)
+        if self.footstep['new']:
+            # footstep reward: so that solution does not avoid making footsteps
+            # scaled by del_t, so that solution does not get higher rewards by making unnecessary (small) steps
+            reward_footstep_0 = self.d_reward['weight']['footstep']*self.d_reward['footstep']['del_t']
+
+            # deviation from target velocity
+            # the average velocity a step (instead of instantaneous velocity) is used
+            # as velocity fluctuates within a step in normal human walking
+            #reward_footstep_v = -self.reward_w['v_tgt']*(self.footstep['del_vx']**2)
+            reward_footstep_v = -self.d_reward['weight']['v_tgt']*np.linalg.norm(self.d_reward['footstep']['del_v'])/self.LENGTH0
+
+            # panalize effort
+            reward_footstep_e = -self.d_reward['weight']['effort']*self.d_reward['footstep']['effort']
+
+            self.d_reward['footstep']['del_t'] = 0
+            self.d_reward['footstep']['del_v'] = 0
+            self.d_reward['footstep']['effort'] = 0
+
+            reward += reward_footstep_0 + reward_footstep_v + reward_footstep_e
+
+        # success bonus
+        if not self.is_done() and (self.osim_model.istep >= self.spec.timestep_limit): #and self.failure_mode is 'success':
+            # retrieve reward (i.e. do not penalize for the simulation terminating in a middle of a step)
+            #reward_footstep_0 = self.d_reward['weight']['footstep']*self.d_reward['footstep']['del_t']
+            #reward += reward_footstep_0 + 100
+            reward += reward_footstep_0 + 100
+
+        # state_desc = self.get_state_desc()
+
+        # reward = 0
+        # reward += self.d_reward['alive']
+
+        # # # effort ~ muscle fatigue ~ (muscle activation)^2 
+        # # ACT2 = 0
+        # # for actuator in ['pelvis', 'hip_r', 'hip_l', 'knee_r', 'knee_l', 'ankle_r', 'ankle_r']:
+        # #     ACT2 += np.square(state_desc['forces'][actuator][0])
+
+        # # reward -= ACT2*0.00001
+
+        # pelvis_ty = np.square(state_desc['body_pos']['pelvis'][1] - 0.9)
+        # pelvis_tilt = np.sum(np.square(state_desc['joint_pos']['ground_pelvis'] - np.asarray([-0.050387283520705727, -0.00014076261193743153, 0.9099458323860586])))
+
+        # reward -= pelvis_ty
+        # reward -= pelvis_tilt
         # reward -= pelvis_tx
         # state_desc = self.get_state_desc()
         # if not self.get_prev_state_desc():

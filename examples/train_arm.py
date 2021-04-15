@@ -34,7 +34,7 @@ args = parser.parse_args()
 #    return super(Arm2DEnv, self).step(action, project=project, obs_as_dict=obs_as_dict)
 #Arm2DEnv.step = _new_step
 # Load walking environment
-env = Arm2DVecEnv(args.visualize, integrator_accuracy=5e-3)
+env = Arm2DVecEnv(args.visualize, integrator_accuracy=3e-2)
 #env = Arm2DVecEnv(visualize=True)
 env.reset()
 #env.reset(verbose=True, logfile='arm_log.txt')
@@ -78,7 +78,7 @@ memory = SequentialMemory(limit=100000, window_length=1)
 random_process = OrnsteinUhlenbeckProcess(theta=.15, mu=0., sigma=.2, size=env.noutput)
 agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
                   memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
-                  random_process=random_process, gamma=.99, target_model_update=1e-3,
+                  random_process=random_process, gamma=.995, target_model_update=1e-3,
                   delta_clip=1.)
 # agent = ContinuousDQNAgent(nb_actions=env.noutput, V_model=V_model, L_model=L_model, mu_model=mu_model,
 #                             memory=memory, nb_steps_warmup=1000, random_process=random_process,

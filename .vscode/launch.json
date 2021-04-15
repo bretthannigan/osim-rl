@@ -4,11 +4,13 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
+
         {
             "name": "Python: Example Script",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/test.py",
+            "program": "${workspaceFolder}/read_test.py",
             "console": "integratedTerminal"
         },
         {
@@ -16,6 +18,20 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/train_gait2d.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Train Gait2D-SB Script",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_gait2d_sb.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Train Gait2D-TD3 Script",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_gait2d_td3.py",
             "console": "integratedTerminal"
         }
     ]
