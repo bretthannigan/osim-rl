@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import pandas as pd
 import os
 from .utils.mygym import convert_to_gym
 import gym
@@ -58,7 +59,8 @@ class Gait2DGenAct(OsimEnv):
     #               'ankle_angle_l_value': 0.0*np.pi/180.0,
     #               'ankle_angle_l_speed': 0.0*np.pi/180.0 }
 
-    obs_body_space = np.array([[-1.0] * 27, [1.0] * 27])
+    obs_body_space = np.array([[-1.0] * 33, [1.0] * 33])
+    # PELVIS:
     obs_body_space[:,0] = [0, 3] # pelvis height
     obs_body_space[:,1] = [-np.pi, np.pi] # pelvis pitch
     obs_body_space[:,2] = [-np.pi, np.pi] # pelvis roll
@@ -68,15 +70,32 @@ class Gait2DGenAct(OsimEnv):
     obs_body_space[:,6] = [-10*np.pi, 10*np.pi] # pelvis angular vel (pitch)
     obs_body_space[:,7] = [-10*np.pi, 10*np.pi] # pelvis angular vel (roll)
     obs_body_space[:,8] = [-10*np.pi, 10*np.pi] # pelvis angular vel (yaw)
-    obs_body_space[:,[9 + x for x in [0, 9]]] = np.array([[-5, 5]]).transpose() # (r,l) ground reaction force normalized to bodyweight (forward)
-    obs_body_space[:,[10 + x for x in [0, 9]]] = np.array([[-5, 5]]).transpose() # (r, l) ground reaction force normalized to bodyweight (rightward)
-    obs_body_space[:,[11 + x for x in [0, 9]]] = np.array([[-10, 10]]).transpose() # (r, l) ground reaction force normalized to bodyweight (upward)
-    obs_body_space[:,[12 + x for x in [0, 9]]] = np.array([[-180*np.pi/180, 45*np.pi/180]]).transpose() # (r, l) joint: (+) hip extension
-    obs_body_space[:,[13 + x for x in [0, 9]]] = np.array([[-180*np.pi/180, 15*np.pi/180]]).transpose() # (r, l) joint: (+) knee extension
-    obs_body_space[:,[14 + x for x in [0, 9]]] = np.array([[-45*np.pi/180, 90*np.pi/180]]).transpose() # (r, l) joint: (+) ankle extension (plantarflexion)
-    obs_body_space[:,[15 + x for x in [0, 9]]] = np.array([[-5*np.pi, 5*np.pi]]).transpose() # (r, l) joint: (+) hip extension
-    obs_body_space[:,[16 + x for x in [0, 9]]] = np.array([[-5*np.pi, 5*np.pi]]).transpose() # (r, l) joint: (+) knee extension
-    obs_body_space[:,[17 + x for x in [0, 9]]] = np.array([[-5*np.pi, 5*np.pi]]).transpose() # (r, l) joint: (+) ankle extension (plantarflexion)
+    # RIGHT LEG:
+    obs_body_space[:,9] = [-5, 5] # (r) ground reaction force normalized to bodyweight (forward)
+    obs_body_space[:,10] = [-5, 5] # (r) ground reaction force normalized to bodyweight (rightward)
+    obs_body_space[:,11] = [-10, 10] # (r) ground reaction force normalized to bodyweight (upward)
+    obs_body_space[:,12] = [-180*np.pi/180, 45*np.pi/180] # (r) joint: (+) hip extension
+    obs_body_space[:,13] = [-180*np.pi/180, 15*np.pi/180] # (r) joint: (+) knee extension
+    obs_body_space[:,14] = [-45*np.pi/180, 90*np.pi/180] # (r) joint: (+) ankle extension (plantarflexion)
+    obs_body_space[:,15] = [-5*np.pi, 5*np.pi] # (r) joint: (+) hip extension velocity
+    obs_body_space[:,16] = [-5*np.pi, 5*np.pi] # (r) joint: (+) knee extension velocity
+    obs_body_space[:,17] = [-5*np.pi, 5*np.pi] # (r) joint: (+) ankle extension (plantarflexion) velocity
+    obs_body_space[:,18] = [-5*np.pi, 5*np.pi] # (r) joint: (+) hip extension acceleration
+    obs_body_space[:,19] = [-5*np.pi, 5*np.pi] # (r) joint: (+) knee extension acceleration
+    obs_body_space[:,20] = [-5*np.pi, 5*np.pi] # (r) joint: (+) ankle extension (plantarflexion) acceleration
+    # LEFT LEG:
+    obs_body_space[:,21] = [-5, 5] # (l) ground reaction force normalized to bodyweight (forward)
+    obs_body_space[:,22] = [-5, 5] # (l) ground reaction force normalized to bodyweight (rightward)
+    obs_body_space[:,23] = [-10, 10] # (l) ground reaction force normalized to bodyweight (upward)
+    obs_body_space[:,24] = [-180*np.pi/180, 45*np.pi/180] # (l) joint: (+) hip extension
+    obs_body_space[:,25] = [-180*np.pi/180, 15*np.pi/180] # (l) joint: (+) knee extension
+    obs_body_space[:,26] = [-45*np.pi/180, 90*np.pi/180] # (l) joint: (+) ankle extension (plantarflexion)
+    obs_body_space[:,27] = [-5*np.pi, 5*np.pi] # (l) joint: (+) hip extension velocity
+    obs_body_space[:,28] = [-5*np.pi, 5*np.pi] # (l) joint: (+) knee extension velocity
+    obs_body_space[:,29] = [-5*np.pi, 5*np.pi] # (l) joint: (+) ankle extension (plantarflexion) velocity
+    obs_body_space[:,30] = [-5*np.pi, 5*np.pi] # (l) joint: (+) hip extension acceleration
+    obs_body_space[:,31] = [-5*np.pi, 5*np.pi] # (l) joint: (+) knee extension acceleration
+    obs_body_space[:,32] = [-5*np.pi, 5*np.pi] # (l) joint: (+) ankle extension (plantarflexion) acceleration
 
     def get_model_key(self):
         return self.model
@@ -101,6 +120,7 @@ class Gait2DGenAct(OsimEnv):
         self.model_paths = {}
         self.model_paths['Generic'] = os.path.join(os.path.dirname(__file__), '../models/gait9dof7act.osim')
         self.model_paths['Brett'] = os.path.join(os.path.dirname(__file__), '../models/gait9dof7act_Brett.osim')
+        self.data_path = 'D:\\Mohsen 2019 Running Study\\Participants\\Brett\\Angles\\Brett10_1.txt'
         self.model = subject
         self.model_path = self.model_paths[self.get_model_key()]
         super(Gait2DGenAct, self).__init__(visualize=visualize, integrator_accuracy=integrator_accuracy)
@@ -125,7 +145,7 @@ class Gait2DGenAct(OsimEnv):
             self.actions_file = open('%s-act.csv' % (report,),'w', bufsize)
             self.get_headers()
 
-    def reset(self, project=True, seed=None, init_pose=None, obs_as_dict=False):
+    def reset(self, project=True, random=False, seed=None, init_pose=None, obs_as_dict=False):
         self.t = 0
         self.init_reward()
 
@@ -134,6 +154,27 @@ class Gait2DGenAct(OsimEnv):
         self.footstep['r_contact'] = 1
         self.footstep['l_contact'] = 1
 
+        # load data
+        self.joint_angles = pd.read_csv(self.data_path)
+        self.joint_angles.drop('Index', axis=1, inplace=True)
+        self.joint_angles.dropna(how='all', axis='columns', inplace=True)
+        if random:
+            np.random.seed(seed)
+            self.data_position = np.random.randint(1, len(self.joint_angles)-self.time_limit)
+        else:
+            self.data_position = 1
+        self.joint_angles = self.joint_angles.apply(np.deg2rad)
+        self.joint_angles['dHipX'] = self.joint_angles['HipX'].diff()/self.osim_model.stepsize
+        self.joint_angles['dKneeX'] = self.joint_angles['KneeX'].diff()/self.osim_model.stepsize
+        self.joint_angles['dAnkleX'] = self.joint_angles['AnkleX'].diff()/self.osim_model.stepsize
+        self.joint_angle_mapping = {}
+        self.joint_angle_mapping['/jointset/hip_l/hip_flexion_l/value'] = 'HipX'
+        self.joint_angle_mapping['/jointset/hip_l/hip_flexion_l/speed'] = 'dHipX'
+        self.joint_angle_mapping['/jointset/knee_l/knee_angle_l/value'] = 'KneeX'
+        self.joint_angle_mapping['/jointset/knee_l/knee_angle_l/speed'] = 'dKneeX'
+        self.joint_angle_mapping['/jointset/ankle_l/ankle_angle_l/value'] = 'AnkleX'
+        self.joint_angle_mapping['/jointset/ankle_l/ankle_angle_l/speed'] = 'dAnkleX'
+
         # initialize state
         self.osim_model.state = self.osim_model.model.initializeState()
         state = self.osim_model.get_state()
@@ -141,14 +182,19 @@ class Gait2DGenAct(OsimEnv):
             for j in range(self.osim_model.model.getCoordinateSet().get(i).getStateVariableNames().getSize()):
                 name = self.osim_model.model.getCoordinateSet().get(i).getStateVariableNames().get(j)
                 kind = name.split('/')[-1]
-                if kind=='value':
-                    self.osim_model.model.setStateVariableValue(state, 
+                if name in self.joint_angle_mapping:
+                    self.osim_model.model.setStateVariableValue(state,
                                                                 name,
-                                                                self.osim_model.model.getCoordinateSet().get(i).getDefaultValue() )
-                elif kind=='speed':
-                    self.osim_model.model.setStateVariableValue(state, 
-                                                                name,
-                                                                self.osim_model.model.getCoordinateSet().get(i).getDefaultSpeedValue() )
+                                                                self.joint_angles[self.joint_angle_mapping[name]].loc[self.data_position])
+                else:
+                    if kind=='value':
+                        self.osim_model.model.setStateVariableValue(state, 
+                                                                    name,
+                                                                    self.osim_model.model.getCoordinateSet().get(i).getDefaultValue() )
+                    elif kind=='speed':
+                        self.osim_model.model.setStateVariableValue(state, 
+                                                                    name,
+                                                                    self.osim_model.model.getCoordinateSet().get(i).getDefaultSpeedValue() )
 
         self.osim_model.set_state(state)
 
@@ -262,6 +308,11 @@ class Gait2DGenAct(OsimEnv):
             obs_dict[leg]['d_joint']['hip'] = -state_desc['joint_vel']['hip_{}'.format(side)][0] # (+) extension
             obs_dict[leg]['d_joint']['knee'] = state_desc['joint_vel']['knee_{}'.format(side)][0] # (+) extension
             obs_dict[leg]['d_joint']['ankle'] = -state_desc['joint_vel']['ankle_{}'.format(side)][0] # (+) extension
+            # joint angular accelerations
+            obs_dict[leg]['d2_joint'] = {}
+            obs_dict[leg]['d2_joint']['hip'] = -state_desc['joint_acc']['hip_{}'.format(side)][0] # (+) extension
+            obs_dict[leg]['d2_joint']['knee'] = state_desc['joint_acc']['knee_{}'.format(side)][0] # (+) extension
+            obs_dict[leg]['d2_joint']['ankle'] = -state_desc['joint_acc']['ankle_{}'.format(side)][0] # (+) extension
 
         return obs_dict
 
@@ -282,13 +333,10 @@ class Gait2DGenAct(OsimEnv):
         res.append(obs_dict['pelvis']['vel'][5])
 
         for leg in ['r_leg', 'l_leg']:
-            res += obs_dict[leg]['ground_reaction_forces']
-            res.append(obs_dict[leg]['joint']['hip'])
-            res.append(obs_dict[leg]['joint']['knee'])
-            res.append(obs_dict[leg]['joint']['ankle'])
-            res.append(obs_dict[leg]['d_joint']['hip'])
-            res.append(obs_dict[leg]['d_joint']['knee'])
-            res.append(obs_dict[leg]['d_joint']['ankle'])
+            res += obs_dict[leg]['ground_reaction_forces'] # 3-element vector.
+            for der in ['joint', 'd_joint', 'd2_joint']:
+                for joint in ['hip', 'knee', 'ankle']:
+                    res.append(obs_dict[leg][der][joint])
         return np.asarray(res)
 
     def get_observation_clipped(self):
@@ -331,9 +379,11 @@ class Gait2DGenAct(OsimEnv):
         self.d_reward['weight']['effort'] = (1.0/280000.0)*10
         self.d_reward['weight']['v_tgt'] = 5
         self.d_reward['weight']['v_tgt_R2'] = 3
+        self.d_reward['weight']['tracking'] = 0.1
 
         self.d_reward['alive'] = 0.1
         self.d_reward['effort'] = 0
+        self.d_reward['tracking'] = 0
 
         self.d_reward['footstep'] = {}
         self.d_reward['footstep']['effort'] = 0
@@ -369,7 +419,18 @@ class Gait2DGenAct(OsimEnv):
         v_tgt = [1.0, 0.0, 0.0]
 
         self.d_reward['footstep']['del_v'] += (v_body[0] - v_tgt[0])*dt
-        #reward += self.d_reward['footstep']['del_v']
+        reward += self.d_reward['footstep']['del_v']
+
+        # Tracking motion capture
+        reward_tracking = 0.
+        reward_tracking += np.square(state_desc['joint_pos']['hip_l'][0] - self.joint_angles['HipX'].loc[self.osim_model.istep])
+        reward_tracking += np.square(state_desc['joint_vel']['hip_l'][0] - self.joint_angles['dHipX'].loc[self.osim_model.istep])
+        reward_tracking += np.square(state_desc['joint_pos']['knee_l'][0] - self.joint_angles['KneeX'].loc[self.osim_model.istep])
+        reward_tracking += np.square(state_desc['joint_vel']['knee_l'][0] - self.joint_angles['dKneeX'].loc[self.osim_model.istep])
+        reward_tracking += np.square(state_desc['joint_pos']['ankle_l'][0] - self.joint_angles['AnkleX'].loc[self.osim_model.istep])
+        reward_tracking += np.square(state_desc['joint_vel']['ankle_l'][0] - self.joint_angles['dAnkleX'].loc[self.osim_model.istep])
+        self.d_reward['tracking'] = -self.d_reward['weight']['tracking']*reward_tracking
+        #reward = reward + self.d_reward['tracking']
 
         # footstep reward (when made a new step)
         if self.footstep['new']:
@@ -381,9 +442,9 @@ class Gait2DGenAct(OsimEnv):
             # the average velocity a step (instead of instantaneous velocity) is used
             # as velocity fluctuates within a step in normal human walking
             #reward_footstep_v = -self.reward_w['v_tgt']*(self.footstep['del_vx']**2)
-            reward_footstep_v = -self.d_reward['weight']['v_tgt']*np.linalg.norm(self.d_reward['footstep']['del_v'])/self.LENGTH0
+            reward_footstep_v = -self.d_reward['weight']['v_tgt']*self.d_reward['footstep']['del_v'])/self.LENGTH0
 
-            # panalize effort
+            # penalize effort
             reward_footstep_e = -self.d_reward['weight']['effort']*self.d_reward['footstep']['effort']
 
             self.d_reward['footstep']['del_t'] = 0
@@ -398,80 +459,6 @@ class Gait2DGenAct(OsimEnv):
             #reward_footstep_0 = self.d_reward['weight']['footstep']*self.d_reward['footstep']['del_t']
             #reward += reward_footstep_0 + 100
             reward += reward_footstep_0 + 100
-
-        # state_desc = self.get_state_desc()
-
-        # reward = 0
-        # reward += self.d_reward['alive']
-
-        # # # effort ~ muscle fatigue ~ (muscle activation)^2 
-        # # ACT2 = 0
-        # # for actuator in ['pelvis', 'hip_r', 'hip_l', 'knee_r', 'knee_l', 'ankle_r', 'ankle_r']:
-        # #     ACT2 += np.square(state_desc['forces'][actuator][0])
-
-        # # reward -= ACT2*0.00001
-
-        # pelvis_ty = np.square(state_desc['body_pos']['pelvis'][1] - 0.9)
-        # pelvis_tilt = np.sum(np.square(state_desc['joint_pos']['ground_pelvis'] - np.asarray([-0.050387283520705727, -0.00014076261193743153, 0.9099458323860586])))
-
-        # reward -= pelvis_ty
-        # reward -= pelvis_tilt
-        # reward -= pelvis_tx
-        # state_desc = self.get_state_desc()
-        # if not self.get_prev_state_desc():
-        #     return 0
-
-        # reward = 0
-        # dt = self.osim_model.stepsize
-
-        # # alive reward
-        # # should be large enough to search for 'success' solutions (alive to the end) first
-        # reward += self.d_reward['alive']
-
-        # # effort ~ muscle fatigue ~ (muscle activation)^2 
-        # ACT2 = 0
-        # for actuator in ['pelvis', 'hip_r', 'hip_l', 'knee_r', 'knee_l', 'ankle_r', 'ankle_r']:
-        #     ACT2 += np.square(state_desc['forces'][actuator])
-        # self.d_reward['effort'] += ACT2*dt
-        # self.d_reward['footstep']['effort'] += ACT2*dt
-
-        # self.d_reward['footstep']['del_t'] += dt
-
-        # # reward from velocity (penalize from deviating from v_tgt)
-
-        # p_body = [state_desc['body_pos']['pelvis'][0], -state_desc['body_pos']['pelvis'][2]]
-        # v_body = [state_desc['body_vel']['pelvis'][0], -state_desc['body_vel']['pelvis'][2]]
-        # v_tgt = np.asarray([0.8, 0])
-
-        # self.d_reward['footstep']['del_v'] += (v_body - v_tgt)*dt
-
-        # # footstep reward (when made a new step)
-        # if self.footstep['new']:
-        #     # footstep reward: so that solution does not avoid making footsteps
-        #     # scaled by del_t, so that solution does not get higher rewards by making unnecessary (small) steps
-        #     reward_footstep_0 = self.d_reward['weight']['footstep']*self.d_reward['footstep']['del_t']
-
-        #     # deviation from target velocity
-        #     # the average velocity a step (instead of instantaneous velocity) is used
-        #     # as velocity fluctuates within a step in normal human walking
-        #     #reward_footstep_v = -self.reward_w['v_tgt']*(self.footstep['del_vx']**2)
-        #     reward_footstep_v = -self.d_reward['weight']['v_tgt']*np.linalg.norm(self.d_reward['footstep']['del_v'])/self.LENGTH0
-
-        #     # panalize effort
-        #     reward_footstep_e = -self.d_reward['weight']['effort']*self.d_reward['footstep']['effort']
-
-        #     self.d_reward['footstep']['del_t'] = 0
-        #     self.d_reward['footstep']['del_v'] = 0
-        #     self.d_reward['footstep']['effort'] = 0
-
-        #     reward += reward_footstep_0 + reward_footstep_v + reward_footstep_e
-
-        # # success bonus
-        # if not self.is_done() and (self.osim_model.istep >= self.spec.timestep_limit): #and self.failure_mode is 'success':
-        #     # retrieve reward (i.e. do not penalize for the simulation terminating in a middle of a step)
-        #     #reward_footstep_0 = self.d_reward['weight']['footstep']*self.d_reward['footstep']['del_t']
-        #     #reward += reward_footstep_0 + 100
-        #     reward += reward_footstep_0 + 10
 
         return reward
 
